@@ -52,21 +52,34 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
     * update the state by using Extended Kalman Filter equations
   */
 
-  float rho = sqrt(x_(0)*x_(0) + x_(1)*x_(1));
-  float phi = atan2(x_(1), x_(0));
+  float px = x_(0);
+  float py = x_(1);
+  float vx = x_(2);
+  float vy = x_(3);
+
+  float rho = sqrt(px * px + py * py);
+  float phi = atan2(py, px);
   float rhodot = 0.0;
-  if (fabs(rho) > 0.0001) {
-    rhodot = (x_(0)*x_(2) + x_(1)*x_(3))/rho;
+
+  if(rho > 0.00001) {
+    rhodot = (px * vx + py * vy )/rho;
   }
 
-  VectorXd z_pred(3);
-  z_pred << rho, phi, rhodot;
+
+
+  VectorXd z_pre(3);
+  z_pre << rho, phi, rhodot;
 
   // H_ hiere is already replaced with Hj_ in FusionEKF
-  VectorXd y = z - z_pred;
+  VectorXd y = z - z_pre;
   MatrixXd Ht_ = H_.transpose();
   MatrixXd S_ = H_ * P_ * Ht_ + R_;
   MatrixXd K_ = P_ * Ht_ * S_.inverse();
+
+  //normalizing angles till in [-pi : pi] range
+  double range = 2 * M_PI;
+  double offsetValue = y(1) + M_PI;   // value relative to 0
+  y(1) = (offsetValue - (floor(offsetValue / range) * range)) - M_PI;
 
   x_ = x_ + K_ * y;
   MatrixXd I_ = MatrixXd::Identity(x_.size(), x_.size());
